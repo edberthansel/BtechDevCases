@@ -37,6 +37,9 @@ func main() {
 	tokenManager := token.NewManager(cfg.JWTSecret, time.Duration(cfg.JWTExpiryMinutes)*time.Minute)
 	authService := service.NewAuthService(userRepo, tokenManager, cfg.InitialBalance)
 	authHandler := handler.NewAuthHandler(authService)
+	walletRepo := repository.NewWalletRepository(pool)
+	walletService := service.NewWalletService(walletRepo)
+	walletHandler := handler.NewWalletHandler(walletService)
 
 	r := gin.Default()
 	r.Use(middleware.CORS(cfg.CORSOrigin))
@@ -55,6 +58,7 @@ func main() {
 	protected.Use(middleware.Auth(tokenManager))
 	{
 		protected.GET("/me", handler.Me)
+		protected.GET("/wallet", walletHandler.GetBalance)
 	}
 
 	log.Printf("server listening on :%s", cfg.Port)
