@@ -40,6 +40,9 @@ func main() {
 	walletRepo := repository.NewWalletRepository(pool)
 	walletService := service.NewWalletService(walletRepo)
 	walletHandler := handler.NewWalletHandler(walletService)
+	txRepo := repository.NewTransactionRepository(pool)
+	transferService := service.NewTransferService(userRepo, txRepo)
+	transferHandler := handler.NewTransferHandler(transferService)
 
 	r := gin.Default()
 	r.Use(middleware.CORS(cfg.CORSOrigin))
@@ -59,6 +62,7 @@ func main() {
 	{
 		protected.GET("/me", handler.Me)
 		protected.GET("/wallet", walletHandler.GetBalance)
+		protected.POST("/transfer", transferHandler.Transfer)
 	}
 
 	log.Printf("server listening on :%s", cfg.Port)
