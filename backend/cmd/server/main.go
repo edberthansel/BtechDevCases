@@ -13,6 +13,7 @@ import (
 	"github.com/edberthansel/BtechDevCases/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/edberthansel/BtechDevCases/backend/internal/token"
+	"github.com/edberthansel/BtechDevCases/backend/internal/middleware"
 )
 
 func main() {
@@ -38,6 +39,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 
 	r := gin.Default()
+	r.Use(middleware.CORS(cfg.CORSOrigin))
 
 	r.GET("/health", func(c *gin.Context) {
 		if err := pool.Ping(c.Request.Context()); err != nil {
@@ -49,6 +51,11 @@ func main() {
 
 	r.POST("/register", authHandler.Register)
 	r.POST("/login", authHandler.Login)
+	protected := r.Group("/")
+	protected.Use(middleware.Auth(tokenManager))
+	{
+		protected.GET("/me", handler.Me)
+	}
 
 	log.Printf("server listening on :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

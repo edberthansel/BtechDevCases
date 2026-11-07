@@ -12,6 +12,7 @@ type Config struct {
 	JWTSecret        string
 	JWTExpiryMinutes int
 	InitialBalance   int64
+	CORSOrigin       string
 }
 
 func Load() (*Config, error) {
@@ -20,6 +21,7 @@ func Load() (*Config, error) {
 		JWTSecret:        os.Getenv("JWT_SECRET"),
 		JWTExpiryMinutes: getEnvInt("JWT_EXPIRY_MINUTES", 15),
 		InitialBalance:   int64(getEnvInt("INITIAL_BALANCE", 1000000)),
+		CORSOrigin:       getEnv("CORS_ORIGIN", "http://localhost:3000"),
 	}
 
 	if cfg.JWTSecret == "" {
