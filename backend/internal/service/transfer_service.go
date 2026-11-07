@@ -105,3 +105,25 @@ func (s *TransferService) Transfer(ctx context.Context, req TransferRequest) (*T
 		Replayed:       replayed,
 	}, nil
 }
+
+const (
+	DefaultHistoryLimit = 20
+	MaxHistoryLimit     = 100
+)
+
+func (s *TransferService) History(ctx context.Context, userID string, limit, offset int) ([]model.HistoryItem, error) {
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, err
+	}
+	if limit <= 0 {
+		limit = DefaultHistoryLimit
+	}
+	if limit > MaxHistoryLimit {
+		limit = MaxHistoryLimit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.txs.ListForUser(ctx, id, limit, offset)
+}

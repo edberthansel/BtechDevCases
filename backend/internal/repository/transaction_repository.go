@@ -143,3 +143,42 @@ func (r *TransactionRepository) Transfer(ctx context.Context, in TransferInput) 
 	}
 	return &rec, false, nil
 }
+
+// ListForUser mengembalikan transaksi masuk dan keluar milik user, terbaru dulu.
+func (r *TransactionRepository) ListForUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]model.HistoryItem, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT t.id, t.from_user_id, t.amount, t.notes, t.created_at, fu.email, tu.email
+		 FROM transactions t
+		 JOIN users fu ON fu.id = t.from_user_id
+		 JOIN users tu ON tu.id = t.to_user_id
+		 WHERE t.from_user_id = $1 OR t.to_user_id = $1
+		 ORDER BY t.created_at DESC, t.id DESC
+		 LIMIT $2 OFFSET $3`,
+		userID, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]model.HistoryItem, 0, limit) // slice kosong, bukan nil, agar JSON jadi []
+	for rows.Next() {
+		var (
+			item                 model.HistoryItem
+			fromID               uuid.UUID
+			fromEmail, toEmail   string
+		)
+		if err := rows.Scan(&item.ID, &fromID, &item.Amount, &item.Notes, &item.CreatedAt, &fromEmail, &toEmail); err != nil {
+			return nil, err
+		}
+		if fromID == userID {
+			item.Direction = "out"
+			item.CounterpartyEmail = toEmail
+		} else {
+			item.Direction = "in"
+			item.CounterpartyEmail = fromEmail
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}

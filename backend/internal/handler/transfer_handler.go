@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/edberthansel/BtechDevCases/backend/internal/middleware"
 	"github.com/edberthansel/BtechDevCases/backend/internal/repository"
@@ -74,4 +75,18 @@ func (h *TransferHandler) Transfer(c *gin.Context) {
 		"createdAt": tx.CreatedAt,
 		"replayed":  result.Replayed,
 	})
+}
+
+func (h *TransferHandler) History(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "0"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	items, err := h.transfers.History(c.Request.Context(), middleware.UserID(c), limit, offset)
+	if err != nil {
+		log.Printf("history error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"items": items})
 }

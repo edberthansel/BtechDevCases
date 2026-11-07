@@ -63,6 +63,7 @@ func main() {
 		protected.GET("/me", handler.Me)
 		protected.GET("/wallet", walletHandler.GetBalance)
 		protected.POST("/transfer", transferHandler.Transfer)
+		protected.GET("/transactions", transferHandler.History)
 	}
 
 	log.Printf("server listening on :%s", cfg.Port)
