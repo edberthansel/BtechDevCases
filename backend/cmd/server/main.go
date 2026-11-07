@@ -7,6 +7,9 @@ import (
 
 	"github.com/edberthansel/BtechDevCases/backend/internal/config"
 	"github.com/edberthansel/BtechDevCases/backend/internal/database"
+	"github.com/edberthansel/BtechDevCases/backend/internal/handler"
+	"github.com/edberthansel/BtechDevCases/backend/internal/repository"
+	"github.com/edberthansel/BtechDevCases/backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,7 +30,12 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
+	userRepo := repository.NewUserRepository(pool)
+	authService := service.NewAuthService(userRepo, cfg.InitialBalance)
+	authHandler := handler.NewAuthHandler(authService)
+
 	r := gin.Default()
+
 	r.GET("/health", func(c *gin.Context) {
 		if err := pool.Ping(c.Request.Context()); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "db down"})
@@ -35,6 +43,8 @@ func main() {
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+
+	r.POST("/register", authHandler.Register)
 
 	log.Printf("server listening on :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {
