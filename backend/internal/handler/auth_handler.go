@@ -52,3 +52,42 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		"email": user.Email,
 	})
 }
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req loginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON body"})
+		return
+	}
+
+	result, err := h.auth.Login(c.Request.Context(), req.Email, req.Password)
+	if err != nil {
+		var ve *service.ValidationError
+		if errors.As(err, &ve) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed", "fields": ve.Fields})
+			return
+		}
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
+			return
+		}
+		log.Printf("login error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":     result.Token,
+		"tokenType": "Bearer",
+		"expiresAt": result.ExpiresAt,
+		"user": gin.H{
+			"id":    result.User.ID,
+			"email": result.User.Email,
+		},
+	})
+}

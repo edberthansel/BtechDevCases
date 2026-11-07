@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/edberthansel/BtechDevCases/backend/internal/config"
 	"github.com/edberthansel/BtechDevCases/backend/internal/database"
@@ -11,6 +12,7 @@ import (
 	"github.com/edberthansel/BtechDevCases/backend/internal/repository"
 	"github.com/edberthansel/BtechDevCases/backend/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/edberthansel/BtechDevCases/backend/internal/token"
 )
 
 func main() {
@@ -31,7 +33,8 @@ func main() {
 	}
 
 	userRepo := repository.NewUserRepository(pool)
-	authService := service.NewAuthService(userRepo, cfg.InitialBalance)
+	tokenManager := token.NewManager(cfg.JWTSecret, time.Duration(cfg.JWTExpiryMinutes)*time.Minute)
+	authService := service.NewAuthService(userRepo, tokenManager, cfg.InitialBalance)
 	authHandler := handler.NewAuthHandler(authService)
 
 	r := gin.Default()
@@ -45,6 +48,7 @@ func main() {
 	})
 
 	r.POST("/register", authHandler.Register)
+	r.POST("/login", authHandler.Login)
 
 	log.Printf("server listening on :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

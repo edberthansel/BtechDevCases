@@ -2,14 +2,19 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/mail"
 	"strings"
+	"time"
 
 	"github.com/edberthansel/BtechDevCases/backend/internal/model"
 	"github.com/edberthansel/BtechDevCases/backend/internal/repository"
+	"github.com/edberthansel/BtechDevCases/backend/internal/token"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var ErrInvalidCredentials = errors.New("invalid email or password")
 
 // ValidationError membawa pesan error per field.
 type ValidationError struct {
@@ -18,13 +23,28 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string { return "validation failed" }
 
-type AuthService struct {
-	users          *repository.UserRepository
-	initialBalance int64
+type LoginResult struct {
+	Token     string
+	ExpiresAt time.Time
+	User      *model.User
 }
 
-func NewAuthService(users *repository.UserRepository, initialBalance int64) *AuthService {
-	return &AuthService{users: users, initialBalance: initialBalance}
+type AuthService struct {
+	users          *repository.UserRepository
+	tokens         *token.Manager
+	initialBalance int64
+	dummyHash      []byte
+}
+
+func NewAuthService(users *repository.UserRepository, tokens *token.Manager, initialBalance int64) *AuthService {
+	// Hash palsu untuk menyamakan waktu respons saat email tidak ditemukan.
+	dummy, _ := bcrypt.GenerateFromPassword([]byte("dummy-password"), bcrypt.DefaultCost)
+	return &AuthService{
+		users:          users,
+		tokens:         tokens,
+		initialBalance: initialBalance,
+		dummyHash:      dummy,
+	}
 }
 
 func (s *AuthService) Register(ctx context.Context, email, password, confirmPassword string) (*model.User, error) {
@@ -74,6 +94,41 @@ func (s *AuthService) Register(ctx context.Context, email, password, confirmPass
 		return nil, err
 	}
 	return user, nil
+}
+
+func (s *AuthService) Login(ctx context.Context, email, password string) (*LoginResult, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	fields := map[string]string{}
+	if email == "" {
+		fields["email"] = "email is required"
+	}
+	if password == "" {
+		fields["password"] = "password is required"
+	}
+	if len(fields) > 0 {
+		return nil, &ValidationError{Fields: fields}
+	}
+
+	user, err := s.users.FindByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(password))
+			return nil, ErrInvalidCredentials
+		}
+		return nil, err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
+	tok, exp, err := s.tokens.Generate(user.ID.String(), user.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResult{Token: tok, ExpiresAt: exp, User: user}, nil
 }
 
 func validEmail(email string) bool {
