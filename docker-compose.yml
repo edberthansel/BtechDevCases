@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: btech-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-btech}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-btech_secret}
+      POSTGRES_DB: ${DB_NAME:-btech_wallet}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-btech} -d ${DB_NAME:-btech_wallet}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
