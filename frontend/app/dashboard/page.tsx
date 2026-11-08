@@ -13,6 +13,7 @@ import {
   type HistoryItem,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
+import { useIdleLogout } from "@/lib/useIdleLogout";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loadError, setLoadError] = useState("");
+  useIdleLogout(() => window.location.assign("/login?reason=idle"));
 
   const load = useCallback(async () => {
     try {
@@ -44,8 +46,7 @@ export default function DashboardPage() {
       return;
     }
 
-    // Token ditolak server (kedaluwarsa): kembali ke login.
-    const onUnauthorized = () => window.location.assign("/login");
+    const onUnauthorized = () => window.location.assign("/login?reason=expired");
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
 
     load();

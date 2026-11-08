@@ -13,10 +13,16 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     if (getToken()) router.replace("/dashboard");
   }, [router]);
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    if (reason === "idle") setNotice("You were logged out after 15 minutes of inactivity.");
+    else if (reason === "expired") setNotice("Your session has expired. Please log in again.");
+  }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,6 +61,12 @@ export default function LoginPage() {
         className="w-full max-w-sm space-y-4 rounded-xl bg-white p-6 shadow"
       >
         <h1 className="text-xl font-semibold text-zinc-900">Login</h1>
+
+        {notice && (
+          <div role="status" className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+            {notice}
+          </div>
+        )}
 
         {formError && (
           <div role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
